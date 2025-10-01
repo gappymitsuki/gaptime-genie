@@ -8,6 +8,10 @@ export function extractTabelogData(html: string): ExtractedData {
     address: null,
     hours: null,
     hero_image: null,
+    images: [],
+    lat: null,
+    lng: null,
+    store_name: null,
   };
 
   // Title
@@ -34,9 +38,28 @@ export function extractTabelogData(html: string): ExtractedData {
   const hoursMatch = html.match(/営業時間[：:]\s*([^<\n]+)/i);
   if (hoursMatch) data.hours = hoursMatch[1].trim();
 
+  // Store name
+  const storeMatch = html.match(/<h1[^>]*class=["'][^"']*display-name[^"']*["'][^>]*>([^<]+)<\/h1>/i);
+  if (storeMatch) data.store_name = storeMatch[1].trim();
+
   // Image
   const imageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i);
   if (imageMatch) data.hero_image = imageMatch[1];
+
+  // Extract multiple images
+  const imageMatches = html.matchAll(/<img[^>]*src=["']([^"']*(?:jpg|jpeg|png|webp)[^"']*)["']/gi);
+  for (const match of imageMatches) {
+    const imgUrl = match[1];
+    if (imgUrl && imgUrl.startsWith('http') && !data.images.includes(imgUrl)) {
+      data.images.push(imgUrl);
+    }
+  }
+
+  // Coordinates
+  const latMatch = html.match(/latitude["']?\s*[:=]\s*["']?(-?\d+\.?\d*)["']?/i);
+  const lngMatch = html.match(/longitude["']?\s*[:=]\s*["']?(-?\d+\.?\d*)["']?/i);
+  if (latMatch) data.lat = parseFloat(latMatch[1]);
+  if (lngMatch) data.lng = parseFloat(lngMatch[1]);
 
   return data;
 }

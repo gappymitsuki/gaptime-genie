@@ -159,8 +159,8 @@ const Playground = () => {
                   <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
                     <h3 className="font-semibold text-lg mb-1">{result.title}</h3>
                     <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                      {result.price_yen && <span>¥{result.price_yen.toLocaleString()}</span>}
-                      {result.duration_min && <span>• {result.duration_min} min</span>}
+                      {result.price && <span>¥{result.price.toLocaleString()}</span>}
+                      {result.duration && <span>• {result.duration}</span>}
                     </div>
                   </div>
 

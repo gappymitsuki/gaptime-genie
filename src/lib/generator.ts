@@ -32,6 +32,10 @@ export async function generateActivity(request: GenerateRequest): Promise<Genera
     address: null,
     hours: null,
     hero_image: null,
+    images: [],
+    lat: null,
+    lng: null,
+    store_name: null,
   };
 
   if (adapter) {
@@ -67,6 +71,11 @@ export async function generateActivity(request: GenerateRequest): Promise<Genera
     extractedData.hero_image = structuredData.image || null;
   }
 
+  // If no images extracted, use hero_image
+  if (extractedData.images.length === 0 && extractedData.hero_image) {
+    extractedData.images.push(extractedData.hero_image);
+  }
+
   // Step 5: Apply overrides
   const overrides = request.overrides || {};
   
@@ -85,8 +94,8 @@ export async function generateActivity(request: GenerateRequest): Promise<Genera
   if (overrides.hours_text) {
     extractedData.hours = overrides.hours_text;
   }
-  if (overrides.hero_image) {
-    extractedData.hero_image = overrides.hero_image;
+  if (overrides.store_name_en) {
+    extractedData.store_name = overrides.store_name_en;
   }
 
   // Step 6: Normalize duration (snap to nearest valid value or default to 30)
@@ -100,28 +109,63 @@ export async function generateActivity(request: GenerateRequest): Promise<Genera
   // Step 7: Compose content
   const composed = composeContent(
     extractedData.raw_title,
-    extractedData.price,
-    normalizedDuration,
-    extractedData.address,
-    request.mvp_mode
+    normalizedDuration
   );
+
+  // Step 7.5: Generate location info
+  let locationFromStation: string | null = null;
+  if (extractedData.address) {
+    // Simple heuristic: extract station info if mentioned
+    const stationMatch = extractedData.address.match(/(\d+)\s*min.*?from\s+([^,]+)/i);
+    if (stationMatch) {
+      locationFromStation = `${stationMatch[1]} min walk from ${stationMatch[2]}`;
+    }
+  }
+
+  // Generate map iframe if coordinates available
+  let mapIframe: string | null = null;
+  if (extractedData.lat && extractedData.lng) {
+    mapIframe = `<iframe
+  src="https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q=${extractedData.lat},${extractedData.lng}&language=en&region=JP"
+  width="600"
+  height="450"
+  style="border:0;"
+  allowfullscreen=""
+  loading="lazy"
+  referrerpolicy="no-referrer-when-downgrade">
+</iframe>`;
+  }
+
+  // Process images
+  const images = extractedData.images.slice(0, 3).map((url, i) => ({
+    url,
+    alt: `${composed.title} - Image ${i + 1}`,
+    position: "object-center" as const,
+  }));
 
   // Step 8: Build activity object
   const activity: Activity = {
     title: composed.title,
     slug: composed.slug,
-    price_yen: extractedData.price,
-    duration_min: normalizedDuration,
-    hero_image: extractedData.hero_image,
+    summary: composed.summary,
+    coverImage: extractedData.hero_image,
+    price: extractedData.price,
+    motivationTags: composed.motivationTags,
+    duration: composed.duration,
+    locationFromStation,
+    address: extractedData.address,
+    storeNameEn: extractedData.store_name,
+    location: extractedData.lat && extractedData.lng ? {
+      lat: extractedData.lat,
+      lng: extractedData.lng,
+    } : null,
+    mapIframe,
+    images,
     quick_overview: composed.quick_overview,
     what_youll_do_steps: composed.what_youll_do_steps,
     whats_included: composed.whats_included,
     perfect_for: composed.perfect_for,
-    location_address: extractedData.address,
     hours_text: extractedData.hours,
-    notes: composed.notes,
-    cta_text: "Go Now !!",
-    lead_capture_enabled: true,
     source: {
       url: finalUrl,
       domain,

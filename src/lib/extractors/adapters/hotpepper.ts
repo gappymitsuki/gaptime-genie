@@ -5,6 +5,10 @@ export interface ExtractedData {
   address: string | null;
   hours: string | null;
   hero_image: string | null;
+  images: string[];
+  lat: number | null;
+  lng: number | null;
+  store_name: string | null;
 }
 
 export function extractHotPepperData(html: string): ExtractedData {
@@ -15,6 +19,10 @@ export function extractHotPepperData(html: string): ExtractedData {
     address: null,
     hours: null,
     hero_image: null,
+    images: [],
+    lat: null,
+    lng: null,
+    store_name: null,
   };
 
   // Title extraction
@@ -46,10 +54,29 @@ export function extractHotPepperData(html: string): ExtractedData {
                     html.match(/受付時間[：:]\s*([^<\n]+)/i);
   if (hoursMatch) data.hours = hoursMatch[1].trim();
 
+  // Store name
+  const storeMatch = html.match(/<h1[^>]*class=["'][^"']*slnName[^"']*["'][^>]*>([^<]+)<\/h1>/i);
+  if (storeMatch) data.store_name = storeMatch[1].trim();
+
   // Hero image
   const imageMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i) ||
                     html.match(/<img[^>]*class=["'][^"']*mainPhoto[^"']*["'][^>]*src=["']([^"']*)["']/i);
   if (imageMatch) data.hero_image = imageMatch[1];
+
+  // Extract multiple images
+  const imageMatches = html.matchAll(/<img[^>]*src=["']([^"']*(?:jpg|jpeg|png|webp)[^"']*)["']/gi);
+  for (const match of imageMatches) {
+    const imgUrl = match[1];
+    if (imgUrl && imgUrl.startsWith('http') && !data.images.includes(imgUrl)) {
+      data.images.push(imgUrl);
+    }
+  }
+
+  // Coordinates
+  const latMatch = html.match(/latitude["']?\s*[:=]\s*["']?(-?\d+\.?\d*)["']?/i);
+  const lngMatch = html.match(/longitude["']?\s*[:=]\s*["']?(-?\d+\.?\d*)["']?/i);
+  if (latMatch) data.lat = parseFloat(latMatch[1]);
+  if (lngMatch) data.lng = parseFloat(lngMatch[1]);
 
   return data;
 }
