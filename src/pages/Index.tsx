@@ -5,19 +5,84 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Zap, Code2, Sparkles, Loader2, ExternalLink, Copy, CheckCircle2 } from "lucide-react";
+import { ArrowRight, Zap, Code2, Sparkles, Loader2, ExternalLink, Copy, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ThingToDo } from "@/lib/schema";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+// Sample URLs for quick testing
+const SAMPLE_URLS = [
+  {
+    name: "HotPepper Beauty",
+    url: "https://beauty.hotpepper.jp/slnH000042182/",
+    domain: "hotpepper.jp",
+  },
+  {
+    name: "Tabelog",
+    url: "https://tabelog.com/tokyo/A1301/A130101/13001237/",
+    domain: "tabelog.com",
+  },
+  {
+    name: "Gurunavi",
+    url: "https://r.gnavi.co.jp/a914100/",
+    domain: "gurunavi.com",
+  },
+];
+
+type LoadingStep = "fetching" | "extracting" | "generating" | "finalizing";
 
 const Index = () => {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<LoadingStep | null>(null);
   const [result, setResult] = useState<ThingToDo | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"json" | "text" | null>(null);
   const { toast } = useToast();
 
-  const handleGenerate = async () => {
-    if (!url) {
+  // URL validation
+  const validateUrl = (urlString: string): { valid: boolean; message?: string } => {
+    try {
+      const urlObj = new URL(urlString);
+
+      // Check if it's http or https
+      if (!["http:", "https:"].includes(urlObj.protocol)) {
+        return { valid: false, message: "URL must use HTTP or HTTPS protocol" };
+      }
+
+      return { valid: true };
+    } catch (e) {
+      return { valid: false, message: "Invalid URL format" };
+    }
+  };
+
+  // Check if URL is from a supported domain
+  const getSupportedDomain = (urlString: string): string | null => {
+    try {
+      const urlObj = new URL(urlString);
+      const hostname = urlObj.hostname;
+
+      if (hostname.includes("hotpepper.jp")) return "HotPepper";
+      if (hostname.includes("tabelog.com")) return "Tabelog";
+      if (hostname.includes("gurunavi.com")) return "Gurunavi";
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const loadingMessages: Record<LoadingStep, string> = {
+    fetching: "Fetching page content...",
+    extracting: "Extracting data from HTML...",
+    generating: "Generating content with AI...",
+    finalizing: "Finalizing result...",
+  };
+
+  const handleGenerate = async (retryUrl?: string) => {
+    const targetUrl = retryUrl || url;
+
+    if (!targetUrl) {
       toast({
         title: "URL Required",
         description: "Please enter a valid URL to generate a thing to do.",
@@ -26,39 +91,80 @@ const Index = () => {
       return;
     }
 
+    // Validate URL
+    const validation = validateUrl(targetUrl);
+    if (!validation.valid) {
+      setError(validation.message || "Invalid URL");
+      toast({
+        title: "Invalid URL",
+        description: validation.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     setResult(null);
+    setError(null);
+    setLoadingStep("fetching");
 
     try {
+      // Simulate step progression
+      const stepTimers: NodeJS.Timeout[] = [];
+
+      stepTimers.push(setTimeout(() => setLoadingStep("extracting"), 1000));
+      stepTimers.push(setTimeout(() => setLoadingStep("generating"), 2500));
+      stepTimers.push(setTimeout(() => setLoadingStep("finalizing"), 5000));
+
       // Call the Edge Function
       const response = await fetch("/functions/v1/generate-thing-from-url", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: targetUrl }),
       });
 
+      // Clear timers
+      stepTimers.forEach(timer => clearTimeout(timer));
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || `HTTP error! status: ${response.status}`
+        );
       }
 
       const data: ThingToDo = await response.json();
       setResult(data);
+      setLoadingStep(null);
       toast({
         title: "Success!",
         description: "Thing to do generated successfully.",
       });
     } catch (error) {
       console.error("Generation error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate thing to do";
+      setError(errorMessage);
+      setLoadingStep(null);
       toast({
         title: "Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate thing to do",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    handleGenerate(url);
+  };
+
+  const handleSampleUrl = (sampleUrl: string) => {
+    setUrl(sampleUrl);
+    setError(null);
+    setResult(null);
   };
 
   const copyToClipboard = async (text: string, type: "json" | "text") => {
@@ -132,6 +238,26 @@ const Index = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Sample URLs */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Quick Start - Try Sample URLs:</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {SAMPLE_URLS.map((sample) => (
+                        <Button
+                          key={sample.domain}
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSampleUrl(sample.url)}
+                          disabled={isLoading}
+                          className="text-xs"
+                        >
+                          {sample.name}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* URL Input */}
                   <div className="space-y-2">
                     <Label htmlFor="url">Experience URL</Label>
                     <Input
@@ -139,14 +265,82 @@ const Index = () => {
                       type="url"
                       placeholder="https://example.com/restaurant-or-activity"
                       value={url}
-                      onChange={(e) => setUrl(e.target.value)}
+                      onChange={(e) => {
+                        setUrl(e.target.value);
+                        setError(null);
+                      }}
                       disabled={isLoading}
                       className="font-mono text-sm"
                     />
+                    {url && !isLoading && (
+                      <div className="text-xs text-muted-foreground">
+                        {(() => {
+                          const domain = getSupportedDomain(url);
+                          const validation = validateUrl(url);
+
+                          if (!validation.valid) {
+                            return (
+                              <span className="text-destructive flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                {validation.message}
+                              </span>
+                            );
+                          }
+
+                          if (domain) {
+                            return (
+                              <span className="text-green-600 flex items-center gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Optimized for {domain}
+                              </span>
+                            );
+                          }
+
+                          return (
+                            <span className="flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Valid URL - Generic extraction will be used
+                            </span>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
 
+                  {/* Loading Progress */}
+                  {isLoading && loadingStep && (
+                    <Alert>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <AlertDescription className="ml-2">
+                        {loadingMessages[loadingStep]}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Error Display */}
+                  {error && !isLoading && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription className="ml-2">
+                        <div className="flex items-center justify-between">
+                          <span>{error}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleRetry}
+                            className="ml-2"
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Retry
+                          </Button>
+                        </div>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Generate Button */}
                   <Button
-                    onClick={handleGenerate}
+                    onClick={() => handleGenerate()}
                     disabled={isLoading || !url}
                     className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity"
                   >
