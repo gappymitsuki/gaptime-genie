@@ -153,9 +153,11 @@ async function generateContent(
     apiKey: Deno.env.get('ANTHROPIC_API_KEY'),
   });
 
-  const prompt = `You are a travel content writer specializing in creating compelling "Things to Do" entries for travelers in Japan.
+  const prompt = `You are a travel experience curator specializing in creating compelling "Things to Do" entries for travelers and locals.
 
-Based on the following information extracted from a webpage, create an attractive "Thing to Do" entry:
+Your task is to transform ANY webpage (restaurant, blog post, venue, event, attraction, article, etc.) into an actionable "Thing to Do" entry that answers "What can I do here?" or "What experience can I have?"
+
+**Context from the webpage:**
 
 Raw Title: ${basicInfo.rawTitle}
 Raw Description: ${basicInfo.rawDescription || "N/A"}
@@ -165,27 +167,43 @@ Duration: ${basicInfo.duration ? `${basicInfo.duration} minutes` : "N/A"}
 Address: ${basicInfo.address || "N/A"}
 URL: ${url}
 
-Please provide a JSON response with the following fields:
+**Instructions:**
 
-1. "title": An engaging, verb-led English title (e.g., "Enjoy Authentic Ramen Making", "Experience Traditional Tea Ceremony", "Discover Hidden Izakaya Gems"). Keep it under 60 characters.
+Think creatively about what someone can DO based on this content:
+- If it's a restaurant → "Enjoy authentic [cuisine]", "Taste [specialty dish]", "Dine at [unique feature]"
+- If it's a blog post about a place → "Explore [location]", "Visit [landmark]", "Discover [hidden gem]"
+- If it's a venue/attraction → "Experience [main activity]", "Tour [venue name]", "Attend [event]"
+- If it's a beauty salon → "Get [service type]", "Try [specialty treatment]", "Relax with [service]"
+- If it's an activity → "Learn [skill]", "Participate in [activity]", "Join [class/workshop]"
 
-2. "shortTitle": A shorter version (under 30 characters) suitable for cards/buttons.
+**Generate JSON with these fields:**
 
-3. "description": A compelling 200-400 character description in English that:
-   - Explains what the visitor will experience
-   - Highlights unique aspects or cultural significance
-   - Mentions practical details (duration, difficulty level if relevant)
-   - Uses engaging, active language
+1. "title": An engaging, action-verb-led English title (60 chars max)
+   Examples: "Enjoy Authentic Ramen Making", "Explore Shibuya's Hidden Cafes", "Experience Traditional Tea Ceremony", "Visit Historic Senso-ji Temple", "Try Luxury Spa Treatment"
 
-4. "category": One of: "restaurant", "beauty", "activity", or "other"
+2. "shortTitle": Shorter version (30 chars max) for cards/buttons
 
-5. "tags": Array of 3-5 relevant tags (e.g., ["authentic", "cultural", "solo-friendly", "couple-friendly", "family-friendly", "nightlife", "daytime", "indoor", "outdoor", "walk-in"])
+3. "description": Compelling 200-400 character description in English that:
+   - Explains what the visitor will experience or do
+   - Highlights unique aspects, cultural significance, or special features
+   - Includes practical details when available
+   - Uses engaging, active language (NOT passive)
 
-6. "languageHints": Array of supported languages (e.g., ["English", "Japanese"], ["Japanese only"])
+4. "category": Choose one:
+   - "restaurant" for dining experiences
+   - "beauty" for wellness, spa, salon, massage
+   - "activity" for workshops, classes, sports, entertainment, tours, events
+   - "other" for museums, temples, parks, shopping, general sightseeing
 
-7. "notes": Brief practical notes (e.g., "Reservation recommended", "Walk-ins welcome", "English menu available", "Rain or shine")
+5. "tags": 3-5 relevant tags from: ["authentic", "cultural", "modern", "traditional", "solo-friendly", "couple-friendly", "family-friendly", "nightlife", "daytime", "indoor", "outdoor", "walk-in", "reservation-needed", "budget-friendly", "luxury", "hands-on", "educational", "relaxing", "adventurous", "foodie", "instagram-worthy"]
 
-Return ONLY valid JSON without any markdown formatting or code blocks.`;
+6. "languageHints": Supported languages based on content. Default to ["Japanese"] if unknown. Examples: ["English", "Japanese"], ["Japanese only"], ["English available"]
+
+7. "notes": 1-2 practical tips (e.g., "Reservation recommended", "Walk-ins welcome", "English menu available", "Cash only", "Rain or shine", "Closed Tuesdays", "Best during cherry blossom season")
+
+**IMPORTANT**: Even if this is a blog post or article, create an actionable "thing to do" - what would someone DO based on this content? Be creative!
+
+Return ONLY valid JSON without markdown formatting or code blocks.`;
 
   const message = await anthropic.messages.create({
     model: "claude-3-5-sonnet-20241022",

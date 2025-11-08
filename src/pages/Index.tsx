@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowRight, Zap, Code2, Sparkles, Loader2, ExternalLink, Copy, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
+import { ArrowRight, Zap, Code2, Sparkles, Loader2, ExternalLink, Copy, CheckCircle2, AlertCircle, RefreshCw, History, Upload } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ThingToDo } from "@/lib/schema";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { HistoryPanel } from "@/components/HistoryPanel";
+import { BulkProcessor } from "@/components/BulkProcessor";
+import { addToHistory } from "@/lib/storage";
 
 // Sample URLs for quick testing
 const SAMPLE_URLS = [
@@ -138,6 +142,10 @@ const Index = () => {
       const data: ThingToDo = await response.json();
       setResult(data);
       setLoadingStep(null);
+
+      // Add to history
+      addToHistory(data);
+
       toast({
         title: "Success!",
         description: "Thing to do generated successfully.",
@@ -228,16 +236,34 @@ const Index = () => {
               Perfect for Gappy and other experience platforms.
             </p>
 
-            {/* Generator Form */}
-            <div className="mx-auto max-w-xl">
-              <Card className="backdrop-blur-sm bg-card/50 border-border/50 shadow-elegant">
-                <CardHeader>
-                  <CardTitle className="text-left">Generate from URL</CardTitle>
-                  <CardDescription className="text-left">
-                    Enter any experience URL to generate structured data
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+            {/* Main Tabs */}
+            <div className="mx-auto max-w-4xl">
+              <Tabs defaultValue="generator" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="generator">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generator
+                  </TabsTrigger>
+                  <TabsTrigger value="bulk">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Bulk Process
+                  </TabsTrigger>
+                  <TabsTrigger value="history">
+                    <History className="h-4 w-4 mr-2" />
+                    History
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Generator Tab */}
+                <TabsContent value="generator">
+                  <Card className="backdrop-blur-sm bg-card/50 border-border/50 shadow-elegant">
+                    <CardHeader>
+                      <CardTitle className="text-left">Generate from URL</CardTitle>
+                      <CardDescription className="text-left">
+                        Enter any experience URL to generate structured data
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                   {/* Sample URLs */}
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Quick Start - Try Sample URLs:</Label>
@@ -355,9 +381,40 @@ const Index = () => {
                         <ArrowRight className="ml-2 h-5 w-5" />
                       </>
                     )}
-                  </Button>
-                </CardContent>
-              </Card>
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Bulk Process Tab */}
+                <TabsContent value="bulk">
+                  <BulkProcessor
+                    onComplete={(results) => {
+                      // Add successful results to history
+                      results.forEach(result => {
+                        if (result.status === "success" && result.data) {
+                          addToHistory(result.data);
+                        }
+                      });
+                    }}
+                  />
+                </TabsContent>
+
+                {/* History Tab */}
+                <TabsContent value="history">
+                  <HistoryPanel
+                    onSelect={(thingToDo) => {
+                      setResult(thingToDo);
+                      // Scroll to results
+                      setTimeout(() => {
+                        document.querySelector("#results-section")?.scrollIntoView({
+                          behavior: "smooth",
+                        });
+                      }, 100);
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         </div>
@@ -365,7 +422,7 @@ const Index = () => {
 
       {/* Results Section */}
       {result && (
-        <section className="container mx-auto px-4 py-12">
+        <section id="results-section" className="container mx-auto px-4 py-12">
           <div className="mx-auto max-w-5xl">
             <h2 className="mb-6 text-3xl font-bold text-center">Generated Result</h2>
 
