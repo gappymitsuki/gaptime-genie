@@ -85,32 +85,48 @@ This project includes a "Things to Do Generator" that creates structured activit
 
 ### Setup
 
-#### 1. Supabase Edge Functions
+#### 1. Get Anthropic API Key
 
-The backend uses Supabase Edge Functions. To deploy:
+First, get your Anthropic API key:
+1. Visit [Anthropic Console](https://console.anthropic.com/)
+2. Create an API key
+3. Copy the key (you'll need it in the next step)
+
+#### 2. Deploy with One Command
+
+We've created an automated deployment script:
 
 ```bash
-# Install Supabase CLI
-npm install -g supabase
+# Set your Anthropic API Key
+export ANTHROPIC_API_KEY=your_actual_api_key_here
 
-# Login to Supabase
-supabase login
-
-# Link to your project
-supabase link --project-ref zmlvjflnawgqyrbuddoz
-
-# Deploy Edge Functions
-supabase functions deploy fetch-page
-supabase functions deploy generate-thing-from-url
+# Run the deployment script
+./scripts/deploy-functions.sh
 ```
 
-#### 2. Environment Variables
+The script will:
+- ✅ Check if you're logged in to Supabase (will prompt if not)
+- ✅ Link to the project
+- ✅ Set your API key as a secret
+- ✅ Deploy both Edge Functions
 
-Set the required environment variables in your Supabase project:
+#### 3. Manual Deployment (Alternative)
+
+If you prefer manual deployment:
 
 ```bash
-# Set Anthropic API Key for AI content generation
-supabase secrets set ANTHROPIC_API_KEY=your_api_key_here
+# Login to Supabase (opens browser for auth)
+npx supabase login
+
+# Link to your project
+npx supabase link --project-ref zmlvjflnawgqyrbuddoz
+
+# Set Anthropic API Key
+npx supabase secrets set ANTHROPIC_API_KEY=your_api_key_here
+
+# Deploy Edge Functions
+npx supabase functions deploy fetch-page --no-verify-jwt
+npx supabase functions deploy generate-thing-from-url --no-verify-jwt
 ```
 
 You'll also need to set these in Supabase Dashboard under Settings > Edge Functions:
