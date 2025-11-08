@@ -2,3 +2,6 @@ project_id = "zmlvjflnawgqyrbuddoz"
 
 [functions.fetch-page]
 verify_jwt = false
+
+[functions.generate-thing-from-url]
+verify_jwt = false

@@ -58,3 +58,26 @@ export interface ErrorResponse {
   error: string;
   details?: string;
 }
+
+// Things to Do Schema
+export type ThingCategory = "restaurant" | "beauty" | "activity" | "other";
+
+export interface ThingToDo {
+  title: string;               // 動詞始まりの英語タイトル
+  shortTitle?: string;         // カード用の短いタイトル
+  description: string;         // 200〜400文字程度の説明（英語）
+  durationMinutes: number | null; // 15 / 30 / 45 / 60 / 90 / 120 など
+  minPriceJpy?: number | null;
+  maxPriceJpy?: number | null;
+  category: ThingCategory;
+  tags: string[];              // ["nightlife","solo friendly","couple"] など
+  location: {
+    name?: string;
+    address?: string;
+    lat?: number;
+    lng?: number;
+  };
+  languageHints?: string[];    // 対応言語 ["English","Japanese"] など
+  sourceUrl: string;
+  notes?: string;              // 予約必須/雨の日OKなど
+}
